@@ -10,6 +10,7 @@ class Visit {
 
   // Not part of backend, just for UI
   List<String>? activityDescriptions;
+  String customerName;
 
   Visit({
     required this.id,
@@ -21,6 +22,7 @@ class Visit {
     required this.activitiesDone,
     this.createdAt,
     this.activityDescriptions,
+    this.customerName = "",
   });
 
   factory Visit.fromJson(Map<String, dynamic> json) {
@@ -43,7 +45,7 @@ class Visit {
     );
   }
 
-  Map<String, dynamic> toJson({bool forCreation = false}) {
+  Map<String, dynamic> toJson() {
     final map = {
       'customer_id': customerId,
       'visit_date': visitDate.toIso8601String(),
@@ -52,12 +54,7 @@ class Visit {
       'notes': notes,
       'activities_done': activitiesDone.map((id) => id.toString()).toList(),
     };
-    if (!forCreation) {
-      map['id'] = id;
-      if (createdAt != null) {
-        map['created_at'] = createdAt!.toIso8601String();
-      }
-    }
     return map;
   }
+
 }
