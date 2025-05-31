@@ -16,4 +16,20 @@ class Activity {
       createdAt: DateTime.parse(json['created_at']),
     );
   }
+
+  Map<String, dynamic> toSqlMap() {
+    return {
+      'id': id,
+      'description': description,
+      'created_at': createdAt.millisecondsSinceEpoch,
+    };
+  }
+
+  factory Activity.fromSqlMap(Map<String, dynamic> map) {
+    return Activity(
+      id: map['id'],
+      description: map['description'],
+      createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at']),
+    );
+  }
 }

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class Visit {
   final int id;
   final int customerId;
@@ -57,4 +59,81 @@ class Visit {
     return map;
   }
 
+  Map<String, dynamic> toSqlMap() {
+    return {
+      'id': id,
+      'customer_id': customerId,
+      'visit_date':
+          visitDate.millisecondsSinceEpoch,
+      'status': status,
+      'location': location,
+      'notes': notes,
+      'activities_done': jsonEncode(activitiesDone),
+      'created_at':
+          createdAt?.millisecondsSinceEpoch,
+      'activity_descriptions':
+          activityDescriptions != null
+              ? jsonEncode(activityDescriptions)
+              : null,
+      'customer_name': customerName,
+    };
+  }
+
+  factory Visit.fromSqlMap(Map<String, dynamic> map) {
+    return Visit(
+      id: map['id'],
+      customerId: map['customer_id'],
+      visitDate: DateTime.fromMillisecondsSinceEpoch(map['visit_date']),
+      status: map['status'],
+      location: map['location'],
+      notes: map['notes'] ?? '',
+      activitiesDone:
+          map['activities_done'] != null &&
+                  map['activities_done'].toString().isNotEmpty
+              ? List<int>.from(
+                jsonDecode(
+                  map['activities_done'],
+                ).map((e) => int.tryParse(e.toString()) ?? 0),
+              )
+              : [],
+      createdAt:
+          map['created_at'] != null
+              ? DateTime.fromMillisecondsSinceEpoch(map['created_at'])
+              : null,
+      activityDescriptions:
+          map['activity_descriptions'] != null &&
+                  map['activity_descriptions'].toString().isNotEmpty
+              ? List<String>.from(jsonDecode(map['activity_descriptions']))
+              : null,
+      customerName: map['customer_name'] ?? "",
+    );
+  }
+
+}
+extension VisitCopyWith on Visit {
+  Visit copyWith({
+    int? id,
+    int? customerId,
+    DateTime? visitDate,
+    String? status,
+    String? location,
+    String? notes,
+    List<int>? activitiesDone,
+    DateTime? createdAt,
+    List<String>? activityDescriptions,
+    String? customerName,
+  }) {
+    return Visit(
+      id: id ?? this.id,
+      customerId: customerId ?? this.customerId,
+      visitDate: visitDate ?? this.visitDate,
+      status: status ?? this.status,
+      location: location ?? this.location,
+      notes: notes ?? this.notes,
+      activitiesDone: activitiesDone ?? this.activitiesDone,
+      createdAt: createdAt ?? this.createdAt,
+      activityDescriptions: activityDescriptions ?? this.activityDescriptions,
+      customerName: customerName ?? this.customerName,
+    );
+  }
 }

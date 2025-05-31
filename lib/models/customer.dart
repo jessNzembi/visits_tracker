@@ -12,4 +12,20 @@ class Customer {
       createdAt: DateTime.parse(json['created_at']),
     );
   }
+
+  Map<String, dynamic> toSqlMap() {
+    return {
+      'id': id,
+      'name': name,
+      'created_at': createdAt.millisecondsSinceEpoch,
+    };
+  }
+
+  factory Customer.fromSqlMap(Map<String, dynamic> map) {
+    return Customer(
+      id: map['id'],
+      name: map['name'],
+      createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at']),
+    );
+  }
 }
