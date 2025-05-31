@@ -9,6 +9,7 @@ import 'package:visits_tracker/models/activity.dart';
 import 'package:visits_tracker/models/customer.dart';
 import 'package:visits_tracker/models/visit.dart';
 import 'package:visits_tracker/services/activities_service.dart';
+import 'package:visits_tracker/services/customers_service.dart';
 import 'package:visits_tracker/services/visits_service.dart';
 import 'package:visits_tracker/utils/failure.dart';
 
@@ -40,8 +41,9 @@ class _AddVisitPageState extends State<AddVisitPage> {
   bool isLoadingCustomers = true;
   bool isLoadingActivities = true;
 
-  final visitsRepository = Get.find<VisitsService>();
-  final activitiesRepository = Get.find<ActivitiesService>();
+  final visitsService = Get.find<VisitsService>();
+  final activitiesService = Get.find<ActivitiesService>();
+  final customersService = Get.find<CustomersService>();
 
   Visit? editingVisit;
 
@@ -55,7 +57,7 @@ class _AddVisitPageState extends State<AddVisitPage> {
 
   Future<void> loadCustomers() async {
     final Either<Failure, List<Customer>> result =
-        await visitsRepository.fetchCustomers();
+        await customersService.fetchCustomers();
     result.fold(
       (failure) {
         Get.snackbar('Error', failure.message);
@@ -81,7 +83,7 @@ class _AddVisitPageState extends State<AddVisitPage> {
 
   Future<void> loadActivities() async {
     final Either<Failure, List<Activity>> result =
-        await activitiesRepository.fetchActivities();
+        await activitiesService.fetchActivities();
     result.fold((failure) => Get.snackbar('Error', failure.message), (data) {
       setState(() {
         activities = data;

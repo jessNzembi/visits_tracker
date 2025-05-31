@@ -109,7 +109,7 @@ class _VisitDetailPageState extends State<VisitDetailPage> {
                 onPressed: () {
                   context.read<VisitsBloc>().add(DeleteVisit(visitId));
                   Navigator.of(ctx).pop();
-                  Get.back(result: true);
+                  Get.back();
                   Get.snackbar("Success", "Visit deleted");
                 },
                 child: const Text(

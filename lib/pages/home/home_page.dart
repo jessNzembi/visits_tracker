@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:visits_tracker/models/visit.dart';
 import 'package:visits_tracker/pages/home/visit_card.dart';
 import 'package:visits_tracker/routes/app_routes.dart';
 import '../../controllers/visits/visits_bloc.dart';
 import '../../controllers/visits/visits_events.dart';
 import '../../controllers/visits/visits_state.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -17,34 +15,64 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  String selectedStatus = 'All';
-  String searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Visits Tracker"), centerTitle: true,),
-      body: BlocBuilder<VisitsBloc, VisitsState>(
+      appBar: AppBar(title: const Text("Visits Tracker"), centerTitle: true),
+      body: BlocConsumer<VisitsBloc, VisitsState>(
+        listener: (context, state) {
+          if (state is DeleteVisitSuccess) {
+            context.read<VisitsBloc>().add(FetchVisits());
+          }
+        },
         builder: (context, state) {
           if (state is VisitsLoading) {
             return const Center(child: CircularProgressIndicator());
           } else if (state is VisitsLoaded) {
-            final visits = state.filteredVisits;
+            final visitsToDisplay = state.finalDisplayedVisits;
+
+            if (_searchController.text != state.searchQuery) {
+              _searchController.text = state.searchQuery;
+              _searchController.selection = TextSelection.fromPosition(
+                TextPosition(offset: _searchController.text.length),
+              );
+            }
+
             return Column(
               children: [
                 _buildStatsGrid(state),
-                _buildSearchField(),
+                _buildSearchField(state.searchQuery),
                 Expanded(
-                  child: ListView.builder(
-                    itemCount: visits.length,
-                    itemBuilder: (context, index) {
-                      final visit = visits[index];
-                      return VisitCard(visit: visit, onTap: () {
-                          Get.toNamed(AppRoutes.visitDetail, arguments: visit);
-                        },
-                      );
-                    },
-                  ),
+                  child:
+                      visitsToDisplay.isEmpty
+                          ? const Center(
+                            child: Text(
+                              "No visits found for this filter/search.",
+                            ),
+                          )
+                          : ListView.builder(
+                            itemCount: visitsToDisplay.length,
+                            itemBuilder: (context, index) {
+                              final visit = visitsToDisplay[index];
+                              return VisitCard(
+                                visit: visit,
+                                onTap: () {
+                                  Get.toNamed(
+                                    AppRoutes.visitDetail,
+                                    arguments: visit,
+                                  );
+                                },
+                              );
+                            },
+                          ),
                 ),
               ],
             );
@@ -55,12 +83,8 @@ class _HomePageState extends State<HomePage> {
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          final result = await Get.toNamed(AppRoutes.addVisits);
-          if (result == true || result is Visit) {
-            // Dispatch refresh event
-            context.read<VisitsBloc>().add(FetchVisits());
-          }
+        onPressed: () {
+          Get.toNamed(AppRoutes.addVisits);
         },
         child: const Icon(Icons.add),
       ),
@@ -69,10 +93,13 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildStatsGrid(VisitsLoaded state) {
     final filters = [
-      {'label': 'All', 'count': state.totalVisits},
-      {'label': 'Completed', 'count': state.totalCompleted},
-      {'label': 'Pending', 'count': state.totalPending},
-      {'label': 'Cancelled', 'count': state.totalCancelled},
+      {
+        'label': 'All',
+        'count': state.totalVisitsStat,
+      },
+      {'label': 'Completed', 'count': state.totalCompletedStat},
+      {'label': 'Pending', 'count': state.totalPendingStat},
+      {'label': 'Cancelled', 'count': state.totalCancelledStat},
     ];
 
     return Padding(
@@ -84,23 +111,35 @@ class _HomePageState extends State<HomePage> {
         childAspectRatio: 2.5,
         children:
             filters.map((f) {
+              final String currentFilterLabel = f['label']!.toString();
               return GestureDetector(
                 onTap: () {
-                  setState(() => selectedStatus = f['label']!.toString());
                   context.read<VisitsBloc>().add(
                     FilterVisits(
-                      status: selectedStatus,
-                      searchQuery: searchQuery,
+                      status: currentFilterLabel,
+                      searchQuery:
+                          state
+                              .searchQuery,
                     ),
                   );
                 },
                 child: Card(
                   color:
-                      selectedStatus == f['label']
-                          ? Colors.green
-                          : Colors.white,
+                      state.selectedStatus == currentFilterLabel
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(context).colorScheme.surface,
                   elevation: 2,
-                  child: Center(child: Text("${f['label']}: ${f['count']}", style: TextStyle(color: Colors.white),)),
+                  child: Center(
+                    child: Text(
+                      "${f['label']}: ${f['count']}",
+                      style: TextStyle(
+                        color:
+                            state.selectedStatus == currentFilterLabel
+                                ? Theme.of(context).colorScheme.onPrimary
+                                : Theme.of(context).colorScheme.onSurface,
+                      ),
+                    ),
+                  ),
                 ),
               );
             }).toList(),
@@ -108,19 +147,26 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildSearchField() {
+  Widget _buildSearchField(String currentSearchQuery) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: TextField(
+        controller: _searchController,
         decoration: const InputDecoration(
           labelText: 'Search by note or customer',
           prefixIcon: Icon(Icons.search),
-          border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(20))),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.all(Radius.circular(20)),
+          ),
         ),
         onChanged: (value) {
-          setState(() => searchQuery = value);
           context.read<VisitsBloc>().add(
-            FilterVisits(status: selectedStatus, searchQuery: searchQuery),
+            FilterVisits(
+              status:
+                  (context.read<VisitsBloc>().state as VisitsLoaded)
+                      .selectedStatus,
+              searchQuery: value,
+            ),
           );
         },
       ),

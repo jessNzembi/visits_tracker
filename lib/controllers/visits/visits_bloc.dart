@@ -11,10 +11,6 @@ class VisitsBloc extends Bloc<VisitsEvent, VisitsState> {
   final VisitsService visitsRepository;
   final ActivitiesService activitiesRepository;
   final CustomersService customersRepository;
-  
-
-
-  List<Visit> _allVisits = [];
 
   VisitsBloc({
     required this.visitsRepository,
@@ -51,37 +47,121 @@ class VisitsBloc extends Bloc<VisitsEvent, VisitsState> {
       },
     );
 
-
-    visitsResult.fold((failure) => emit(VisitsError(failure.message)), (
+    visitsResult.fold((failure) => emit(VisitsError(failure.message)), 
+    (
       visits,
     ) {
-      _allVisits = visits;
-      emit(_buildLoadedState(_allVisits));
+      String currentSelectedStatus = 'All';
+      String currentSearchQuery = '';
+
+      if (state is VisitsLoaded) {
+        final previousState = state as VisitsLoaded;
+        currentSelectedStatus = previousState.selectedStatus;
+        currentSearchQuery = previousState.searchQuery;
+      }
+
+      // Calculate all necessary lists and stats
+      _emitLoadedState(
+        emit,
+        allVisits: visits,
+        selectedStatus: currentSelectedStatus,
+        searchQuery: currentSearchQuery,
+      );
     });
   }
+ 
 
-  void _onFilterVisits(FilterVisits event, Emitter<VisitsState> emit) {
-    final currentState = state;
-    if (currentState is VisitsLoaded) {
-      List<Visit> filtered = _allVisits;
+  Future<void> _onFilterVisits(
+    FilterVisits event,
+    Emitter<VisitsState> emit,
+  ) async {
+    if (state is VisitsLoaded) {
+      final currentState = state as VisitsLoaded;
+      final newSelectedStatus = event.status;
+      final newSearchQuery = event.searchQuery;
 
-      // Filter by status
-      if (event.status != 'All') {
-        filtered = filtered.where((v) => v.status == event.status).toList();
-      }
-
-      // Filter by search query (customer name or note)
-      if (event.searchQuery.isNotEmpty) {
-        filtered =
-            filtered.where((v) {
-              final lower = event.searchQuery.toLowerCase();
-              return (v.notes.toLowerCase().contains(lower)) ||
-                  (v.customerName.toString().contains(lower));
-            }).toList();
-      }
-
-      emit(_buildLoadedState(filtered));
+      // Re-calculate all lists and stats based on new filter/search
+      _emitLoadedState(
+        emit,
+        allVisits: currentState.allVisits,
+        selectedStatus: newSelectedStatus,
+        searchQuery: newSearchQuery,
+      );
     }
+  }
+
+  // Centralized method to build and emit VisitsLoaded state
+  void _emitLoadedState(
+    Emitter<VisitsState> emit, {
+    required List<Visit> allVisits,
+    required String selectedStatus,
+    required String searchQuery,
+  }) {
+    //Filter by status
+    final List<Visit> filteredVisitsByStatus = _applyStatusFilter(
+      allVisits,
+      selectedStatus,
+    );
+
+    // Filter by search query
+    final List<Visit> filteredVisitsBySearch = _applySearchFilter(
+      allVisits,
+      searchQuery,
+    );
+
+    final List<Visit> finalDisplayedVisits = _applyStatusFilter(
+      filteredVisitsBySearch,
+      selectedStatus,
+    );
+
+    //Calculate statistics based on:
+    //    - If search is active: filteredVisitsBySearch
+    //    - If no search: allVisits
+    final List<Visit> listForStats =
+        searchQuery.isNotEmpty ? filteredVisitsBySearch : allVisits;
+
+    final int totalVisitsStat = listForStats.length;
+    final int totalCompletedStat =
+        listForStats.where((v) => v.status == 'Completed').length;
+    final int totalPendingStat =
+        listForStats.where((v) => v.status == 'Pending').length;
+    final int totalCancelledStat =
+        listForStats.where((v) => v.status == 'Cancelled').length;
+
+    emit(
+      VisitsLoaded(
+        allVisits: allVisits,
+        filteredVisitsByStatus: filteredVisitsByStatus,
+        filteredVisitsBySearch: filteredVisitsBySearch,
+        finalDisplayedVisits: finalDisplayedVisits,
+        totalVisitsStat: totalVisitsStat,
+        totalCompletedStat: totalCompletedStat,
+        totalPendingStat: totalPendingStat,
+        totalCancelledStat: totalCancelledStat,
+        selectedStatus: selectedStatus,
+        searchQuery: searchQuery,
+      ),
+    );
+  }
+
+  // Helper for status filtering
+  List<Visit> _applyStatusFilter(List<Visit> visitsToFilter, String status) {
+    if (status == 'All') {
+      return List.from(visitsToFilter);
+    }
+    return visitsToFilter.where((v) => v.status == status).toList();
+  }
+
+  // Helper for search filtering
+  List<Visit> _applySearchFilter(List<Visit> visitsToFilter, String query) {
+    if (query.isEmpty) {
+      return List.from(visitsToFilter);
+    }
+    final lowerQuery = query.toLowerCase();
+    return visitsToFilter.where((v) {
+      return (v.notes.toLowerCase().contains(lowerQuery)) ||
+          (v.customerName.toLowerCase().contains(lowerQuery));
+    }).toList();
   }
 
   Future<void> _onDeleteVisit(
@@ -91,7 +171,7 @@ class VisitsBloc extends Bloc<VisitsEvent, VisitsState> {
     final result = await visitsRepository.deleteVisit(event.visitId);
     result.fold(
       (failure) => emit(VisitsError(failure.message)),
-      (_) => add(FetchVisits()),
+      (_) => emit(DeleteVisitSuccess()),
     );
   }
 
@@ -138,22 +218,19 @@ class VisitsBloc extends Bloc<VisitsEvent, VisitsState> {
     );
   }
 
+  // VisitsLoaded _buildLoadedState(List<Visit> filtered) {
+  //   int total = _allVisits.length;
+  //   int completed = _allVisits.where((v) => v.status == 'Completed').length;
+  //   int pending = _allVisits.where((v) => v.status == 'Pending').length;
+  //   int cancelled = _allVisits.where((v) => v.status == 'Cancelled').length;
 
-
-
-  VisitsLoaded _buildLoadedState(List<Visit> filtered) {
-    int total = _allVisits.length;
-    int completed = _allVisits.where((v) => v.status == 'Completed').length;
-    int pending = _allVisits.where((v) => v.status == 'Pending').length;
-    int cancelled = _allVisits.where((v) => v.status == 'Cancelled').length;
-
-    return VisitsLoaded(
-      visits: filtered,
-      filteredVisits: filtered,
-      totalVisits: total,
-      totalCompleted: completed,
-      totalPending: pending,
-      totalCancelled: cancelled,
-    );
-  }
+  //   return VisitsLoaded(
+  //     visits: filtered,
+  //     filteredVisits: filtered,
+  //     totalVisits: total,
+  //     totalCompleted: completed,
+  //     totalPending: pending,
+  //     totalCancelled: cancelled,
+  //   );
+  // }
 }
