@@ -13,6 +13,7 @@ class VisitsService {
 
   Future<Either<Failure, List<Visit>>> getVisits({
     Map<int, String>? activityMap,
+    Map<int, String>? customerMap,
   }) async {
     final url = Uri.parse('$baseUrl/visits');
     final response = await http.get(
@@ -31,6 +32,10 @@ class VisitsService {
                       .map((id) => activityMap[id] ?? 'Unknown Activity')
                       .toList();
             }
+            if (customerMap != null) {
+              visit.customerName =
+                  customerMap[visit.customerId] ?? 'Unknown Customer';
+            }
             return visit;
           }).toList();
       return right(visits);
@@ -48,7 +53,7 @@ class VisitsService {
           'Authorization': 'Bearer $apiKey',
           'Content-Type': 'application/json',
         },
-        body: jsonEncode(visit.toJson(forCreation: true)),
+        body: jsonEncode(visit.toJson()),
       );
 
       if (response.statusCode == 201 || response.statusCode == 200) {
@@ -61,23 +66,39 @@ class VisitsService {
     }
   }
 
-  Future<Either<Failure, Unit>> updateVisit(int id, Visit visit) async {
+  Future<Either<Failure, Visit>> updateVisit(
+    Visit visit,
+    Map<int, String>? activityMap,
+    Map<int, String>? customerMap,
+  ) async {
     try {
       final response = await http.patch(
-        Uri.parse('$baseUrl/visits?id=eq.$id'),
+        Uri.parse('$baseUrl/visits?id=eq.${visit.id}'),
         headers: {
           'apikey': apiKey,
           'Authorization': 'Bearer $apiKey',
           'Content-Type': 'application/json',
-          'Prefer': 'return=minimal',
+          'Prefer': 'return=representation',
         },
-        body: jsonEncode(
-          visit.toJson(),
-        ),
+        body: jsonEncode(visit.toJson()),
       );
 
-      if (response.statusCode == 204) {
-        return right(unit);
+      if (response.statusCode == 200) {
+        final List data = jsonDecode(response.body);
+
+        final visit = Visit.fromJson(data.first);
+        if (activityMap != null) {
+          visit.activityDescriptions =
+              visit.activitiesDone
+                  .map((id) => activityMap[id] ?? 'Unknown Activity')
+                  .toList();
+        }
+        if (customerMap != null) {
+          visit.customerName =
+              customerMap[visit.customerId] ?? 'Unknown Customer';
+        }
+
+        return right(visit);
       } else {
         return left(Failure('Failed to update visit: ${response.body}'));
       }
@@ -126,6 +147,4 @@ class VisitsService {
       return left(Failure('Error: $e'));
     }
   }
-
-  // TODO: add the other methods
 }
