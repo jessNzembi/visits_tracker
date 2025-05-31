@@ -41,7 +41,6 @@ class _VisitDetailPageState extends State<VisitDetailPage> {
                 setState(() {
                   visit = result;
                 });
-                Get.snackbar("Updated", "Visit updated successfully");
               }
             },
           ),
