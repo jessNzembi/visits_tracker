@@ -8,11 +8,9 @@ The Visits Tracker is a mobile application for managing customer visits. It enab
 
 ## Screenshots
 
-*(Replace the placeholder URLs with the raw links to your screenshots on GitHub or wherever they are hosted. Ensure they are publicly accessible.)*
-
 | Home Page | Add Visit Page | Visit Detail Page | Edit Visit Page |
 | :--------------------: | :------------------: | :------------------------: | :-----------------: |
-| ![Screenshot 1](https://raw.github.com/jessNzembi/visits_tracker/main/screenshots/home.png) | ![Screenshot 2](https://raw.github.com/jessNzembi/visits_tracker/main/screenshots/add_visit.png) | ![Screenshot 3](https://raw.github.com/jessNzembi/visits_tracker/main/screenshots/visit_detail.png) | ![Screenshot 4](https://raw.github.com/jessNzembi/visits_tracker/main/screenshots/edit_visit.png) |
+| ![Screenshot 1](screenshots/home.png) | ![Screenshot 2](screenshots/add_visit.png) | ![Screenshot 3](screenshots/visit_detail.png) | ![Screenshot 4](screenshots/edit_visit.png) |
 
 ---
 
